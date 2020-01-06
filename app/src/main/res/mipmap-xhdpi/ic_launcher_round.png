@@ -1,0 +1,160 @@
+/*
+ * Copyright (C) 2011 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package androidx.core.view.accessibility;
+
+import static android.view.View.NO_ID;
+
+import static androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX;
+
+import android.graphics.Rect;
+import android.os.Build;
+import android.os.Bundle;
+import android.text.InputType;
+import android.text.Spannable;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.TextUtils;
+import android.text.style.ClickableSpan;
+import android.util.Log;
+import android.util.SparseArray;
+import android.view.View;
+import android.view.accessibility.AccessibilityNodeInfo;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.RestrictTo;
+import androidx.core.R;
+import androidx.core.accessibilityservice.AccessibilityServiceInfoCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.accessibility.AccessibilityViewCommand.CommandArguments;
+import androidx.core.view.accessibility.AccessibilityViewCommand.MoveAtGranularityArguments;
+import androidx.core.view.accessibility.AccessibilityViewCommand.MoveHtmlArguments;
+import androidx.core.view.accessibility.AccessibilityViewCommand.MoveWindowArguments;
+import androidx.core.view.accessibility.AccessibilityViewCommand.ScrollToPositionArguments;
+import androidx.core.view.accessibility.AccessibilityViewCommand.SetProgressArguments;
+import androidx.core.view.accessibility.AccessibilityViewCommand.SetSelectionArguments;
+import androidx.core.view.accessibility.AccessibilityViewCommand.SetTextArguments;
+
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Helper for accessing {@link android.view.accessibility.AccessibilityNodeInfo} in a backwards
+ * compatible fashion.
+ */
+public class AccessibilityNodeInfoCompat {
+
+    /**
+     * A class defining an action that can be performed on an {@link AccessibilityNodeInfo}.
+     * Each action has a unique id and a label.
+     * <p>
+     * There are three categories of actions:
+     * <ul>
+     * <li><strong>Standard actions</strong> - These are actions that are reported and
+     * handled by the standard UI widgets in the platform. For each standard action
+     * there is a static constant defined in this class, e.g. {@link #ACTION_FOCUS}.
+     * These actions will have {@code null} labels.
+     * </li>
+     * <li><strong>Custom actions action</strong> - These are actions that are reported
+     * and handled by custom widgets. i.e. ones that are not part of the UI toolkit. For
+     * example, an application may define a custom action for clearing the user history.
+     * </li>
+     * <li><strong>Overriden standard actions</strong> - These are actions that override
+     * standard actions to customize them. For example, an app may add a label to the
+     * standard {@link #ACTION_CLICK} action to indicate to the user that this action clears
+     * browsing history.
+     * </ul>
+     * </p>
+     * <p class="note">
+     * <strong>Note:</strong> Views which support these actions should invoke
+     * {@link View#setImportantForAccessibility(int)} with
+     * {@link View#IMPORTANT_FOR_ACCESSIBILITY_YES} to ensure an
+     * {@link android.accessibilityservice.AccessibilityService} can discover the set of supported
+     * actions.
+     * </p>
+     */
+    public static class AccessibilityActionCompat {
+
+        private static final String TAG = "A11yActionCompat";
+
+        /**
+         * Action that gives input focus to the node.
+         */
+        public static final AccessibilityActionCompat ACTION_FOCUS =
+                new AccessibilityActionCompat(AccessibilityNodeInfoCompat.ACTION_FOCUS, null);
+
+        /**
+         * Action that clears input focus of the node.
+         */
+        public static final AccessibilityActionCompat ACTION_CLEAR_FOCUS =
+                new AccessibilityActionCompat(
+                        AccessibilityNodeInfoCompat.ACTION_CLEAR_FOCUS, null);
+
+        /**
+         *  Action that selects the node.
+         */
+        public static final AccessibilityActionCompat ACTION_SELECT =
+                new AccessibilityActionCompat(
+                        AccessibilityNodeInfoCompat.ACTION_SELECT, null);
+
+        /**
+         * Action that deselects the node.
+         */
+        public static final AccessibilityActionCompat ACTION_CLEAR_SELECTION =
+                new AccessibilityActionCompat(
+                        AccessibilityNodeInfoCompat.ACTION_CLEAR_SELECTION, null);
+
+        /**
+         * Action that clicks on the node info.
+         */
+        public static final AccessibilityActionCompat ACTION_CLICK =
+                new AccessibilityActionCompat(AccessibilityNodeInfoCompat.ACTION_CLICK, null);
+
+        /**
+         * Action that long clicks on the node.
+         */
+        public static final AccessibilityActionCompat ACTION_LONG_CLICK =
+                new AccessibilityActionCompat(
+                        AccessibilityNodeInfoCompat.ACTION_LONG_CLICK, null);
+
+        /**
+         * Action that gives accessibility focus to the node.
+         */
+        public static final AccessibilityActionCompat ACTION_ACCESSIBILITY_FOCUS =
+                new AccessibilityActionCompat(
+                        AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS, null);
+
+        /**
+         * Action that clears accessibility focus of the node.
+         */
+        public static final AccessibilityActionCompat ACTION_CLEAR_ACCESSIBILITY_FOCUS =
+                new AccessibilityActionCompat(
+                        AccessibilityNodeInfoCompat.ACTION_CLEAR_ACCESSIBILITY_FOCUS, null);
+
+        /**
+         * Action that requests to go to the next entity in this node's text
+         * at a given movement granularity. For example, move to the next character,
+         * word, etc.
+         * <p>
+         * <strong>Arguments:</strong>
+         * {@link AccessibilityNodeInfoCompat#ACTION_ARGUMENT_MOVEMENT_GRANULARITY_INT
+         *  AccessibilityNodeInfoCompat.ACTION_ARGUMENT_MOVEMENT_GRANULARITY_INT},
+         * {@link AccessibilityNodeInfoCompat#ACTION_ARGUMENT_EXTEND_SELECTION_BOOLEAN
+         *  AccessibilityNodeInfoCompat.ACTION_ARGUMENT_EXTEND_SELECTION_BOOLEAN}<br>
+         * <strong>Example:</strong> Move to the previous charact
